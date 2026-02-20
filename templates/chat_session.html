@@ -1,0 +1,585 @@
+{% extends "base.html" %}
+
+{% block title %}{{ session.session_name if session else 'Chat' }} - HealthApp{% endblock %}
+
+{% block content %}
+<div class="h-screen flex flex-col" style="height: calc(100vh - 64px);">
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar -->
+        <div class="w-80 bg-dark-light border-r border-dark-lighter flex flex-col">
+            <!-- Session Name -->
+            <div class="p-4 border-b border-dark-lighter">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-bold text-white" id="session-name">
+                        {{ session.session_name if session else 'New Chat' }}
+                    </h2>
+                    <button onclick="renameSession()" class="text-gray-400 hover:text-white transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500">Session ID: {{ session_id }}</p>
+            </div>
+
+            <!-- Document Upload -->
+            <div class="p-4 border-b border-dark-lighter">
+                <h3 class="text-sm font-semibold text-gray-300 mb-3">Upload Documents</h3>
+                
+                <!-- Upload Status -->
+                <div id="upload-status" class="hidden mb-3 p-3 bg-blue-600 bg-opacity-20 border border-blue-600 rounded-lg">
+                    <div class="flex items-center">
+                        <svg class="animate-spin h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="text-sm text-blue-400" id="upload-status-text">Uploading...</span>
+                    </div>
+                </div>
+                
+                <!-- New Upload -->
+                <div class="mb-3">
+                    <label class="block">
+                        <input type="file" id="new-pdf-upload" accept=".pdf" class="hidden" onchange="uploadNewPDF()" multiple>
+                        <div id="upload-btn" class="cursor-pointer bg-primary hover:bg-green-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition text-center">
+                            📄 Upload PDF(s)
+                        </div>
+                    </label>
+                    <p class="text-xs text-gray-500 mt-1 text-center">You can select multiple files</p>
+                </div>
+
+                <!-- Reuse Existing -->
+                <div>
+                    <select id="reuse-doc-select" class="w-full bg-dark border border-dark-lighter text-white text-sm rounded-lg p-2 focus:ring-2 focus:ring-primary">
+                        <option value="">Select existing PDF...</option>
+                        {% for doc in all_docs %}
+                        <option value="{{ doc.doc_id }}">{{ doc.filename }}</option>
+                        {% endfor %}
+                    </select>
+                    <button onclick="reuseDocument()" id="reuse-btn" class="w-full mt-2 bg-secondary hover:bg-blue-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition">
+                        ♻️ Reuse Selected
+                    </button>
+                </div>
+            </div>
+
+            <!-- Uploaded Documents List -->
+            <div class="flex-1 overflow-y-auto p-4">
+                <h3 class="text-sm font-semibold text-gray-300 mb-3">Documents in this chat</h3>
+                <div id="documents-list" class="space-y-2">
+                    {% if session_docs %}
+                        {% for doc in session_docs %}
+                        <div class="bg-dark p-3 rounded-lg border border-dark-lighter">
+                            <div class="flex items-start">
+                                <span class="text-2xl mr-2">📕</span>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-medium text-white truncate">{{ doc.filename }}</div>
+                                    {% if doc.total_pages %}
+                                    <div class="text-xs text-gray-500">{{ doc.total_pages }} pages</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-8 text-gray-500 text-sm">
+                            <div class="text-3xl mb-2">📄</div>
+                            No documents uploaded yet
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="flex-1 flex flex-col bg-dark">
+            <!-- Messages Container -->
+            <div id="messages-container" class="flex-1 overflow-y-auto p-6 space-y-4">
+                {% if messages %}
+                    {% for msg in messages %}
+                        {% if msg.message_type == 'user' %}
+                        <!-- User Message -->
+                        <div class="flex justify-end">
+                            <div class="max-w-2xl bg-primary text-white rounded-2xl rounded-tr-none px-5 py-3">
+                                <div class="text-sm">{{ msg.content }}</div>
+                                <div class="text-xs text-green-200 mt-1">{{ msg.created_at.strftime('%I:%M %p') }}</div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- AI Message -->
+                        <div class="flex justify-start">
+                            <div class="max-w-2xl bg-dark-light border border-dark-lighter rounded-2xl rounded-tl-none px-5 py-3">
+                                <div class="text-sm text-gray-100 leading-relaxed" id="msg-content-{{ msg.message_id }}">{{ msg.content }}</div>
+                                
+                                {% if msg.confidence_score is not none and msg.confidence_score > 0 %}
+                                <div class="flex items-center gap-2 mt-3 text-xs flex-wrap">
+                                    <span class="px-2 py-1 rounded-full {% if msg.confidence_score > 70 %}bg-green-600{% elif msg.confidence_score > 40 %}bg-yellow-600{% else %}bg-red-600{% endif %} text-white">
+                                        {{ msg.confidence_score }}% confidence
+                                    </span>
+                                    {% if msg.source_doc_names %}
+                                    <span class="text-gray-400">📄 {{ msg.source_doc_names }}</span>
+                                    {% endif %}
+                                    {% if msg.source_pages %}
+                                    <span class="text-gray-400">Pages: {{ msg.source_pages }}</span>
+                                    {% endif %}
+                                    {% if msg.is_correct %}
+                                    <span class="px-2 py-1 bg-green-600 bg-opacity-20 text-green-400 rounded-full">✓ Marked Correct</span>
+                                    {% endif %}
+                                    {% if msg.is_edited %}
+                                    <span class="px-2 py-1 bg-yellow-600 bg-opacity-20 text-yellow-400 rounded-full">✏️ Edited</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Feedback Buttons - Show only if NOT marked correct AND NOT edited -->
+                                {% if not msg.is_correct and not msg.is_edited %}
+                                <div class="flex gap-2 mt-3">
+                                    <button onclick="markCorrect('{{ msg.message_id }}')" 
+                                            class="text-xs px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                                        ✓ Mark Correct
+                                    </button>
+                                    <button onclick="editMessage('{{ msg.message_id }}')" 
+                                            class="text-xs px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition">
+                                        ✏️ Edit
+                                    </button>
+                                </div>
+                                {% endif %}
+                                {% endif %}
+                                
+                                <div class="text-xs text-gray-500 mt-1">{{ msg.created_at.strftime('%I:%M %p') }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <div class="flex items-center justify-center h-full">
+                        <div class="text-center text-gray-500">
+                            <div class="text-6xl mb-4">💬</div>
+                            <h3 class="text-xl font-semibold mb-2">Start a conversation</h3>
+                            <p class="text-sm">Upload documents and ask questions</p>
+                        </div>
+                    </div>
+                {% endif %}
+                
+                <!-- Loading indicator -->
+                <div id="loading-indicator" class="hidden flex justify-start">
+                    <div class="bg-dark-light border border-dark-lighter rounded-2xl rounded-tl-none px-5 py-3">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                            <span class="text-sm text-gray-400 ml-2">Thinking...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="border-t border-dark-lighter bg-dark-light p-4">
+                <form onsubmit="sendMessage(event)" class="flex items-end gap-3">
+                    <textarea id="question-input" 
+                              rows="1"
+                              placeholder="Ask a question about your documents..."
+                              class="flex-1 bg-dark border border-dark-lighter text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+                              style="max-height: 120px;"
+                              onkeydown="handleEnter(event)"></textarea>
+                    <button type="submit" 
+                            id="send-btn"
+                            class="bg-primary hover:bg-green-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition flex items-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const sessionId = parseInt('{{ session_id }}');
+let isUploading = false;
+let messageIdCounter = 1;
+
+function enableControls() {
+    document.getElementById('new-pdf-upload').disabled = false;
+    document.getElementById('reuse-doc-select').disabled = false;
+    document.getElementById('reuse-btn').disabled = false;
+    document.getElementById('question-input').disabled = false;
+    document.getElementById('send-btn').disabled = false;
+    document.getElementById('upload-btn').classList.remove('opacity-50', 'cursor-not-allowed');
+    isUploading = false;
+}
+
+function disableControls() {
+    document.getElementById('new-pdf-upload').disabled = true;
+    document.getElementById('reuse-doc-select').disabled = true;
+    document.getElementById('reuse-btn').disabled = true;
+    document.getElementById('question-input').disabled = true;
+    document.getElementById('send-btn').disabled = true;
+    document.getElementById('upload-btn').classList.add('opacity-50', 'cursor-not-allowed');
+    isUploading = true;
+}
+
+function showUploadStatus(message) {
+    const status = document.getElementById('upload-status');
+    const statusText = document.getElementById('upload-status-text');
+    statusText.textContent = message;
+    status.classList.remove('hidden');
+}
+
+function hideUploadStatus() {
+    document.getElementById('upload-status').classList.add('hidden');
+}
+
+document.getElementById('question-input').addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = (this.scrollHeight) + 'px';
+});
+
+function handleEnter(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage(event);
+    }
+}
+
+async function uploadNewPDF() {
+    const fileInput = document.getElementById('new-pdf-upload');
+    const files = fileInput.files;
+    
+    if (!files || files.length === 0) return;
+    if (isUploading) return;
+    
+    for (let i = 0; i < files.length; i++) {
+        if (!files[i].name.toLowerCase().endsWith('.pdf')) {
+            showNotification('Please select only PDF files', 'error');
+            return;
+        }
+    }
+    
+    disableControls();
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        showUploadStatus(`Uploading ${i + 1}/${files.length}: ${file.name}...`);
+        
+        const formData = new FormData();
+        formData.append('pdf_files', file);
+        
+        try {
+            const response = await fetch('/chat/' + sessionId + '/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                addDocumentToList(data.filename, data.total_pages);
+                successCount++;
+            } else {
+                failCount++;
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            failCount++;
+        }
+    }
+    
+    fileInput.value = '';
+    hideUploadStatus();
+    enableControls();
+    
+    if (successCount > 0 && failCount === 0) {
+        showNotification(`Successfully uploaded ${successCount} file(s)!`, 'success');
+    } else if (successCount > 0 && failCount > 0) {
+        showNotification(`Uploaded ${successCount} file(s), ${failCount} failed`, 'error');
+    } else {
+        showNotification('All uploads failed', 'error');
+    }
+}
+
+async function reuseDocument() {
+    const select = document.getElementById('reuse-doc-select');
+    const docId = select.value;
+    
+    if (!docId) {
+        showNotification('Please select a document', 'error');
+        return;
+    }
+    if (isUploading) return;
+    
+    disableControls();
+    showUploadStatus('Adding document to chat...');
+    
+    const formData = new FormData();
+    formData.append('reuse_doc_id', docId);
+    
+    try {
+        const response = await fetch('/chat/' + sessionId + '/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showUploadStatus('Processing document...');
+            setTimeout(() => {
+                addDocumentToList(data.filename, data.total_pages);
+                select.value = '';
+                hideUploadStatus();
+                enableControls();
+                showNotification('Document added to chat!', 'success');
+            }, 1000);
+        } else {
+            hideUploadStatus();
+            enableControls();
+            showNotification(data.message || 'Failed to add document', 'error');
+        }
+    } catch (error) {
+        console.error('Reuse error:', error);
+        hideUploadStatus();
+        enableControls();
+        showNotification('Failed to add document: ' + error.message, 'error');
+    }
+}
+
+function addDocumentToList(filename, pages) {
+    const list = document.getElementById('documents-list');
+    
+    const emptyMsg = list.querySelector('.text-center');
+    if (emptyMsg) emptyMsg.remove();
+    
+    const docDiv = document.createElement('div');
+    docDiv.className = 'bg-dark p-3 rounded-lg border border-dark-lighter';
+    docDiv.innerHTML = `
+        <div class="flex items-start">
+            <span class="text-2xl mr-2">📕</span>
+            <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-white truncate">${filename}</div>
+                ${pages ? `<div class="text-xs text-gray-500">${pages} pages</div>` : ''}
+            </div>
+        </div>
+    `;
+    list.appendChild(docDiv);
+}
+
+async function sendMessage(event) {
+    event.preventDefault();
+    
+    const input = document.getElementById('question-input');
+    const question = input.value.trim();
+    
+    if (!question) return;
+    
+    addMessage('user', question);
+    input.value = '';
+    input.style.height = 'auto';
+    
+    document.getElementById('loading-indicator').classList.remove('hidden');
+    scrollToBottom();
+    
+    try {
+        const response = await fetch('/chat/' + sessionId + '/ask', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ question: question })
+        });
+        
+        const data = await response.json();
+        
+        document.getElementById('loading-indicator').classList.add('hidden');
+        
+        if (data.success) {
+            addMessage('ai', data.answer, data.confidence, data.source_pages, data.source_doc_names);
+        } else {
+            showNotification(data.message || 'Failed to get answer', 'error');
+        }
+    } catch (error) {
+        console.error('Send error:', error);
+        document.getElementById('loading-indicator').classList.add('hidden');
+        showNotification('Failed to send message', 'error');
+    }
+}
+
+function addMessage(type, content, confidence, sourcePages, sourceDocNames) {
+    const container = document.getElementById('messages-container');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = type === 'user' ? 'flex justify-end' : 'flex justify-start';
+    
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    
+    if (type === 'user') {
+        messageDiv.innerHTML = `
+            <div class="max-w-2xl bg-primary text-white rounded-2xl rounded-tr-none px-5 py-3">
+                <div class="text-sm">${content}</div>
+                <div class="text-xs text-green-200 mt-1">${timeStr}</div>
+            </div>
+        `;
+    } else {
+        const confidenceClass = confidence > 70 ? 'bg-green-600' : confidence > 40 ? 'bg-yellow-600' : 'bg-red-600';
+        const showMetadata = confidence !== undefined && confidence > 0;
+        const tempId = 'new-' + messageIdCounter++;
+        
+        messageDiv.innerHTML = `
+            <div class="max-w-2xl bg-dark-light border border-dark-lighter rounded-2xl rounded-tl-none px-5 py-3">
+                <div class="text-sm text-gray-100 leading-relaxed" id="msg-content-${tempId}">${content}</div>
+                ${showMetadata ? `
+                    <div class="flex items-center gap-2 mt-3 text-xs flex-wrap">
+                        <span class="px-2 py-1 rounded-full ${confidenceClass} text-white">
+                            ${confidence}% confidence
+                        </span>
+                        ${sourceDocNames ? `<span class="text-gray-400">📄 ${sourceDocNames}</span>` : ''}
+                        ${sourcePages ? `<span class="text-gray-400">Pages: ${sourcePages}</span>` : ''}
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="markCorrectNew('${tempId}')" 
+                                class="text-xs px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                            ✓ Mark Correct
+                        </button>
+                        <button onclick="editMessageNew('${tempId}')" 
+                                class="text-xs px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition">
+                            ✏️ Edit
+                        </button>
+                    </div>
+                ` : ''}
+                <div class="text-xs text-gray-500 mt-1">${timeStr}</div>
+            </div>
+        `;
+    }
+    
+    container.appendChild(messageDiv);
+    scrollToBottom();
+}
+
+function scrollToBottom() {
+    const container = document.getElementById('messages-container');
+    container.scrollTop = container.scrollHeight;
+}
+
+async function renameSession() {
+    const currentName = document.getElementById('session-name').textContent.trim();
+    const newName = prompt('Enter new chat name:', currentName);
+    
+    if (!newName || newName === currentName) return;
+    
+    try {
+        const response = await fetch('/chat/' + sessionId + '/rename', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name: newName })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('session-name').textContent = newName;
+            showNotification('Chat renamed!', 'success');
+        }
+    } catch (error) {
+        console.error('Rename error:', error);
+        showNotification('Failed to rename', 'error');
+    }
+}
+
+async function markCorrect(messageId) {
+    if (!confirm('Mark this answer as correct?')) return;
+    
+    try {
+        const response = await fetch('/chat/message/' + messageId + '/feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ is_correct: true })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showNotification('Marked as correct!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification('Failed to save feedback', 'error');
+        }
+    } catch (error) {
+        console.error('Feedback error:', error);
+        showNotification('Failed to save feedback', 'error');
+    }
+}
+
+async function editMessage(messageId) {
+    const contentEl = document.getElementById('msg-content-' + messageId);
+    
+    if (!contentEl) {
+        showNotification('Message not found', 'error');
+        return;
+    }
+    
+    const currentContent = contentEl.textContent.trim();
+    const newContent = prompt('Edit the answer:', currentContent);
+    
+    if (!newContent || newContent === currentContent) return;
+    
+    try {
+        const response = await fetch('/chat/message/' + messageId + '/feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                is_correct: false,
+                edited_content: newContent 
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            contentEl.textContent = newContent;
+            showNotification('Answer updated!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification('Failed to update answer', 'error');
+        }
+    } catch (error) {
+        console.error('Edit error:', error);
+        showNotification('Failed to update answer', 'error');
+    }
+}
+
+// Functions for newly generated messages 
+async function markCorrectNew(tempId) {
+    showNotification('Please reload the page to mark this answer as correct', 'error');
+}
+
+async function editMessageNew(tempId) {
+    showNotification('Please reload the page to edit this answer', 'error');
+}
+
+function showNotification(message, type) {
+    const color = type === 'success' ? 'bg-green-600' : 'bg-red-600';
+    const div = document.createElement('div');
+    div.className = 'fixed top-20 right-4 ' + color + ' text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    div.textContent = message;
+    document.body.appendChild(div);
+    
+    setTimeout(() => {
+        div.style.opacity = '0';
+        div.style.transition = 'opacity 0.5s';
+        setTimeout(() => div.remove(), 500);
+    }, 3000);
+}
+
+window.addEventListener('load', () => {
+    scrollToBottom();
+    enableControls();
+});
+</script>
+{% endblock %}

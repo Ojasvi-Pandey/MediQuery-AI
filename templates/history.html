@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+
+{% block title %}History - MediQuery AI{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">📜 History</h1>
+        <p class="text-gray-400">View all your chats, tasks, documents, and Q&A</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex space-x-4 mb-6 border-b border-dark-lighter overflow-x-auto">
+        <button onclick="showTab('chats')" 
+                class="tab-btn px-4 py-2 font-medium transition border-b-2 border-transparent hover:text-primary whitespace-nowrap"
+                id="chats-tab">
+            💬 Chat Sessions
+        </button>
+        <button onclick="showTab('excel')" 
+                class="tab-btn px-4 py-2 font-medium transition border-b-2 border-transparent hover:text-secondary whitespace-nowrap"
+                id="excel-tab">
+            📊 Excel Tasks
+        </button>
+        <button onclick="showTab('docs')" 
+                class="tab-btn px-4 py-2 font-medium transition border-b-2 border-transparent hover:text-yellow-500 whitespace-nowrap"
+                id="docs-tab">
+            📄 Documents
+        </button>
+        <button onclick="showTab('all-qa')" 
+                class="tab-btn px-4 py-2 font-medium transition border-b-2 border-transparent hover:text-purple-500 whitespace-nowrap"
+                id="all-qa-tab">
+            🔍 All Q&A
+        </button>
+    </div>
+
+    <!-- Chat Sessions Tab -->
+    <div id="chats-content" class="tab-content">
+        {% if chat_sessions %}
+            <div class="grid gap-4">
+                {% for session in chat_sessions %}
+                <a href="{{ url_for('chat_session', session_id=session.session_id) }}" 
+                   class="block bg-dark-light hover:bg-dark-lighter p-6 rounded-xl border border-dark-lighter hover:border-primary transition">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-white mb-2">{{ session.session_name }}</h3>
+                            <div class="text-sm text-gray-400">
+                                Created: {{ session.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                Last updated: {{ session.updated_at.strftime('%B %d, %Y at %I:%M %p') }}
+                            </div>
+                        </div>
+                        <div class="text-4xl">💬</div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-16 bg-dark-light rounded-xl border border-dark-lighter">
+                <div class="text-6xl mb-4">💬</div>
+                <h3 class="text-xl font-semibold text-white mb-2">No chat sessions yet</h3>
+                <p class="text-gray-400 mb-6">Start your first conversation</p>
+                <form action="{{ url_for('create_chat') }}" method="POST" class="inline-block">
+                    <button type="submit" class="bg-primary hover:bg-green-600 text-white font-semibold py-3 px-8 rounded-lg">
+                        Create First Chat
+                    </button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Excel Tasks Tab -->
+    <div id="excel-content" class="tab-content hidden">
+        {% if excel_tasks %}
+            <div class="grid gap-4">
+                {% for task in excel_tasks %}
+                <a href="{{ url_for('view_excel_task', task_id=task.task_id) }}" 
+                   class="block bg-dark-light hover:bg-dark-lighter p-6 rounded-xl border border-dark-lighter hover:border-secondary transition">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-white mb-2">{{ task.task_name }}</h3>
+                            <div class="flex items-center gap-3 text-sm text-gray-400">
+                                {% if task.total_questions %}
+                                <span>{{ task.total_questions }} questions</span>
+                                <span>•</span>
+                                {% endif %}
+                                <span>{{ task.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                            </div>
+                            <div class="mt-2">
+                                <span class="px-2 py-1 bg-secondary bg-opacity-20 text-secondary rounded text-xs">
+                                    {{ task.status }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="text-4xl">📊</div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-16 bg-dark-light rounded-xl border border-dark-lighter">
+                <div class="text-6xl mb-4">📊</div>
+                <h3 class="text-xl font-semibold text-white mb-2">No Excel tasks yet</h3>
+                <p class="text-gray-400 mb-6">Process your first Excel file</p>
+                <a href="{{ url_for('excel_qa') }}" class="inline-block bg-secondary hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg">
+                    Start Excel Q&A
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Documents Tab - UPDATED WITH OPEN BUTTON -->
+    <div id="docs-content" class="tab-content hidden">
+        {% if documents %}
+            <div class="bg-dark-light rounded-xl border border-dark-lighter overflow-hidden">
+                <table class="w-full">
+                    <thead class="bg-dark-lighter">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Filename</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Upload Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Pages</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-dark-lighter">
+                        {% for doc in documents %}
+                        <tr class="hover:bg-dark transition">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="text-2xl">{% if doc.file_type == 'pdf' %}📕{% else %}📊{% endif %}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm font-medium text-white">{{ doc.filename }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                                {{ doc.upload_date.strftime('%b %d, %Y %I:%M %p') }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                                {% if doc.total_pages %}{{ doc.total_pages }}{% else %}-{% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                             {% if doc.status == 'uploaded' %}bg-green-600 bg-opacity-20 text-green-400{% else %}bg-gray-600 bg-opacity-20 text-gray-400{% endif %}">
+                                    {{ doc.status }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if doc.file_type == 'pdf' %}
+                                <a href="{{ url_for('view_document', doc_id=doc.doc_id) }}" 
+                                   target="_blank"
+                                   class="inline-flex items-center px-3 py-2 bg-primary hover:bg-green-600 text-white text-xs font-medium rounded-lg transition">
+                                    📖 Open
+                                </a>
+                                {% else %}
+                                <a href="{{ url_for('view_document', doc_id=doc.doc_id) }}" 
+                                   class="inline-flex items-center px-3 py-2 bg-secondary hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition">
+                                    ⬇️ Download
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-16 bg-dark-light rounded-xl border border-dark-lighter">
+                <div class="text-6xl mb-4">📄</div>
+                <h3 class="text-xl font-semibold text-white mb-2">No documents yet</h3>
+                <p class="text-gray-400">Upload documents in a chat or Excel task</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- All Q&A Tab - NEW -->
+    <div id="all-qa-content" class="tab-content hidden">
+        <!-- Date Filter -->
+        <div class="bg-dark-light rounded-xl border border-dark-lighter p-4 mb-6">
+            <h3 class="text-sm font-semibold text-gray-300 mb-3">📅 Filter by Date</h3>
+            <form method="GET" action="{{ url_for('history') }}" class="flex flex-wrap gap-3 items-end">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Start Date</label>
+                    <input type="date" name="start_date" value="{{ request.args.get('start_date', '') }}"
+                           class="bg-dark border border-dark-lighter text-white text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">End Date</label>
+                    <input type="date" name="end_date" value="{{ request.args.get('end_date', '') }}"
+                           class="bg-dark border border-dark-lighter text-white text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500">
+                </div>
+                <button type="submit" 
+                        class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                    Apply Filter
+                </button>
+                <a href="{{ url_for('history') }}" 
+                   class="bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                    Clear
+                </a>
+            </form>
+        </div>
+
+        <!-- Q&A List -->
+        {% if all_qa %}
+            <div class="space-y-4">
+                {% for qa in all_qa %}
+                <div class="bg-dark-light rounded-xl p-6 border border-dark-lighter hover:border-purple-500 transition">
+                    <!-- Source Badge -->
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold
+                                         {% if qa.source_type == 'chat' %}bg-primary bg-opacity-20 text-primary{% else %}bg-secondary bg-opacity-20 text-secondary{% endif %}">
+                                {% if qa.source_type == 'chat' %}💬 Chat{% else %}📊 Excel{% endif %}
+                            </span>
+                            <span class="text-sm text-gray-400">{{ qa.source_name }}</span>
+                        </div>
+                        <span class="text-xs text-gray-500">{{ qa.created_at.strftime('%b %d, %Y %I:%M %p') }}</span>
+                    </div>
+
+                    <!-- Question -->
+                    <div class="mb-3">
+                        <span class="inline-block px-2 py-1 bg-purple-600 text-white text-xs font-semibold rounded mb-2">Question</span>
+                        <p class="text-white font-medium">{{ qa.question }}</p>
+                    </div>
+
+                    <!-- Answer -->
+                    <div class="bg-dark rounded-lg p-4 mb-3 border border-dark-lighter">
+                        <span class="inline-block px-2 py-1 bg-green-600 text-white text-xs font-semibold rounded mb-2">Answer</span>
+                        <p class="text-gray-100 leading-relaxed" data-answer-id="{{ qa.id }}" data-answer-type="{{ qa.source_type }}">{{ qa.answer }}</p>
+                    </div>
+
+                    <!-- Metadata -->
+                    {% if qa.confidence is not none and qa.confidence > 0 %}
+                    <div class="flex items-center gap-2 flex-wrap text-xs">
+                        <span class="px-3 py-1 rounded-full font-medium
+                                     {% if qa.confidence > 70 %}bg-green-600{% elif qa.confidence > 40 %}bg-yellow-600{% else %}bg-red-600{% endif %} text-white">
+                            {{ qa.confidence }}% confidence
+                        </span>
+                        
+                        {% if qa.source_doc_names %}
+                        <span class="px-3 py-1 bg-blue-600 bg-opacity-20 text-blue-400 rounded-full">
+                            📄 {{ qa.source_doc_names }}
+                        </span>
+                        {% endif %}
+                        
+                        {% if qa.source_pages %}
+                        <span class="px-3 py-1 bg-secondary bg-opacity-20 text-secondary rounded-full">
+                            Pages: {{ qa.source_pages }}
+                        </span>
+                        {% endif %}
+
+                        {% if qa.is_correct %}
+                        <span class="px-3 py-1 bg-green-600 bg-opacity-20 text-green-400 rounded-full">
+                            ✓ Marked Correct
+                        </span>
+                        {% endif %}
+
+                        {% if qa.is_edited %}
+                        <span class="px-3 py-1 bg-yellow-600 bg-opacity-20 text-yellow-400 rounded-full">
+                            ✏️ Edited
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Feedback Buttons - Show only if not marked correct AND not edited -->
+                    {% if not qa.is_correct and not qa.is_edited %}
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="markQACorrect('{{ qa.source_type }}', '{{ qa.id }}')" 
+                                class="text-xs px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                            ✓ Mark Correct
+                        </button>
+                        <button onclick="editQA('{{ qa.source_type }}', '{{ qa.id }}')" 
+                                class="text-xs px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition">
+                            ✏️ Edit Answer
+                        </button>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Count -->
+            <div class="mt-6 text-center text-sm text-gray-400">
+                Showing {{ all_qa|length }} Q&A record(s)
+            </div>
+        {% else %}
+            <div class="text-center py-16 bg-dark-light rounded-xl border border-dark-lighter">
+                <div class="text-6xl mb-4">🔍</div>
+                <h3 class="text-xl font-semibold text-white mb-2">No Q&A records found</h3>
+                <p class="text-gray-400 mb-6">
+                    {% if request.args.get('start_date') or request.args.get('end_date') %}
+                    Try adjusting the date filter
+                    {% else %}
+                    Start asking questions to see them here
+                    {% endif %}
+                </p>
+                {% if request.args.get('start_date') or request.args.get('end_date') %}
+                <a href="{{ url_for('history') }}" class="text-purple-500 hover:text-purple-400">Clear filters</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Tab switching
+function showTab(tabName) {
+    // Hide all content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Remove active state from all tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-primary', 'border-secondary', 'border-yellow-500', 'border-purple-500', 
+                            'text-primary', 'text-secondary', 'text-yellow-500', 'text-purple-500');
+        btn.classList.add('text-gray-400');
+    });
+    
+    // Show selected content
+    document.getElementById(tabName + '-content').classList.remove('hidden');
+    
+    // Activate selected tab
+    const activeTab = document.getElementById(tabName + '-tab');
+    activeTab.classList.remove('text-gray-400');
+    
+    if (tabName === 'chats') {
+        activeTab.classList.add('border-primary', 'text-primary');
+    } else if (tabName === 'excel') {
+        activeTab.classList.add('border-secondary', 'text-secondary');
+    } else if (tabName === 'docs') {
+        activeTab.classList.add('border-yellow-500', 'text-yellow-500');
+    } else if (tabName === 'all-qa') {
+        activeTab.classList.add('border-purple-500', 'text-purple-500');
+    }
+    
+    // Save active tab to localStorage
+    localStorage.setItem('activeHistoryTab', tabName);
+}
+
+// Mark Q&A as correct from history
+async function markQACorrect(sourceType, id) {
+    if (!confirm('Mark this answer as correct?')) return;
+    
+    try {
+        let endpoint;
+        if (sourceType === 'chat') {
+            endpoint = `/chat/message/${id}/feedback`;
+        } else {
+            endpoint = `/task/answer/${id}/feedback`;
+        }
+        
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ is_correct: true })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showNotification('Answer marked as correct!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification('Failed to save feedback', 'error');
+        }
+    } catch (error) {
+        console.error('Feedback error:', error);
+        showNotification('Failed to save feedback', 'error');
+    }
+}
+
+// Edit Q&A from history
+async function editQA(sourceType, id) {
+    // Find the answer paragraph using data attributes
+    const answerParagraph = document.querySelector(`p[data-answer-id="${id}"][data-answer-type="${sourceType}"]`);
+    
+    if (!answerParagraph) {
+        showNotification('Could not find answer text', 'error');
+        return;
+    }
+    
+    const currentAnswer = answerParagraph.textContent.trim();
+    const newAnswer = prompt('Edit the answer:', currentAnswer);
+    
+    if (!newAnswer || newAnswer === currentAnswer) return;
+    
+    try {
+        let endpoint;
+        let bodyKey;
+        
+        if (sourceType === 'chat') {
+            endpoint = `/chat/message/${id}/feedback`;
+            bodyKey = 'edited_content';
+        } else {
+            endpoint = `/task/answer/${id}/feedback`;
+            bodyKey = 'edited_answer';
+        }
+        
+        const body = { is_correct: false };
+        body[bodyKey] = newAnswer;
+        
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showNotification('Answer updated successfully!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification('Failed to update answer', 'error');
+        }
+    } catch (error) {
+        console.error('Edit error:', error);
+        showNotification('Failed to update answer', 'error');
+    }
+}
+
+// Show notification
+function showNotification(message, type) {
+    const color = type === 'success' ? 'bg-green-600' : 'bg-red-600';
+    const div = document.createElement('div');
+    div.className = `fixed top-20 right-4 ${color} text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-slide-in`;
+    div.textContent = message;
+    document.body.appendChild(div);
+    
+    setTimeout(() => {
+        div.style.opacity = '0';
+        div.style.transition = 'opacity 0.5s';
+        setTimeout(() => div.remove(), 500);
+    }, 3000);
+}
+
+// Restore active tab on page load
+window.addEventListener('load', () => {
+    // Check if coming from date filter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('start_date') || urlParams.has('end_date')) {
+        showTab('all-qa');
+    } else {
+        const savedTab = localStorage.getItem('activeHistoryTab') || 'chats';
+        showTab(savedTab);
+    }
+});
+</script>
+{% endblock %}

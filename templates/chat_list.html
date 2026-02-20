@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Chats - MediQuery AI{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-white">Your Chats</h1>
+            <p class="text-gray-400 mt-1">All your conversation sessions</p>
+        </div>
+        <form action="{{ url_for('create_chat') }}" method="POST">
+            <button type="submit" class="bg-primary hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition flex items-center">
+                <span class="text-xl mr-2">+</span>
+                New Chat
+            </button>
+        </form>
+    </div>
+
+    {% if sessions %}
+        <div class="grid gap-4">
+            {% for session in sessions %}
+            <a href="{{ url_for('chat_session', session_id=session.session_id) }}" 
+               class="block bg-dark-light hover:bg-dark-lighter p-6 rounded-xl border border-dark-lighter hover:border-primary transition">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <h3 class="text-lg font-semibold text-white">{{ session.session_name }}</h3>
+                        <div class="text-sm text-gray-400 mt-2">
+                            Created: {{ session.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            Last updated: {{ session.updated_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        </div>
+                    </div>
+                    <div class="text-3xl">💬</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-16 bg-dark-light rounded-xl border border-dark-lighter">
+            <div class="text-6xl mb-4">💬</div>
+            <h3 class="text-xl font-semibold text-white mb-2">No chats yet</h3>
+            <p class="text-gray-400 mb-6">Start your first conversation with AI</p>
+            <form action="{{ url_for('create_chat') }}" method="POST" class="inline-block">
+                <button type="submit" class="bg-primary hover:bg-green-600 text-white font-semibold py-3 px-8 rounded-lg shadow-lg transition">
+                    Create First Chat
+                </button>
+            </form>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

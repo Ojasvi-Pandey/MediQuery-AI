@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome - HealthApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#10b981',
+                        secondary: '#3b82f6',
+                        dark: {
+                          DEFAULT: '#0f172a',
+                          light: '#1e293b',
+                          lighter: '#334155'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.8s ease-out; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse-slow { animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    </style>
+</head>
+<body class="bg-dark text-gray-100">
+    <div class="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-dark via-dark-light to-dark relative overflow-hidden">
+        <!-- Animated background elements -->
+        <div class="absolute inset-0 overflow-hidden">
+            <div class="absolute -top-40 -right-40 w-80 h-80 bg-primary opacity-10 rounded-full blur-3xl animate-pulse-slow"></div>
+            <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-secondary opacity-10 rounded-full blur-3xl animate-pulse-slow" style="animation-delay: 1.5s;"></div>
+        </div>
+        
+        <div class="max-w-4xl w-full relative z-10">
+            <!-- Main Content -->
+            <div class="text-center animate-fade-in">
+                <!-- Logo/Icon -->
+                <div class="mb-8">
+                    <div class="text-8xl mb-4 animate-pulse-slow">🥼</div>
+                    <h1 class="text-6xl font-bold mb-4">
+                        <span class="bg-gradient-to-r from-primary to-green-400 bg-clip-text text-transparent">
+                            MediQuery AI
+                        </span>
+                    </h1>
+                    <p class="text-2xl text-gray-400 mb-2">AI-Powered Document Q&A System</p>
+                    <p class="text-lg text-gray-500">Intelligent answers from your medical documents</p>
+                </div>
+
+                <!-- Features Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 mt-12">
+                    <div class="bg-dark-light border border-dark-lighter rounded-2xl p-6 hover:border-primary transition transform hover:scale-105">
+                        <div class="text-4xl mb-3">💬</div>
+                        <h3 class="text-lg font-semibold text-white mb-2">Smart Chat</h3>
+                        <p class="text-sm text-gray-400">Interactive conversations with your documents</p>
+                    </div>
+                    
+                    <div class="bg-dark-light border border-dark-lighter rounded-2xl p-6 hover:border-secondary transition transform hover:scale-105">
+                        <div class="text-4xl mb-3">📊</div>
+                        <h3 class="text-lg font-semibold text-white mb-2">Excel Q&A</h3>
+                        <p class="text-sm text-gray-400">Batch process questions from spreadsheets</p>
+                    </div>
+                    
+                    <div class="bg-dark-light border border-dark-lighter rounded-2xl p-6 hover:border-yellow-500 transition transform hover:scale-105">
+                        <div class="text-4xl mb-3">📄</div>
+                        <h3 class="text-lg font-semibold text-white mb-2">PDF Analysis</h3>
+                        <p class="text-sm text-gray-400">Extract insights from medical PDFs</p>
+                    </div>
+                </div>
+
+                <!-- CTA Button -->
+                <div class="mt-8">
+                    <a href="/login" 
+                       class="inline-block bg-gradient-to-r from-primary to-green-600 hover:from-green-600 hover:to-primary text-white text-xl font-bold py-5 px-12 rounded-2xl shadow-2xl transform hover:scale-105 transition duration-300">
+                        Get Started →
+                    </a>
+                    <p class="text-sm text-gray-500 mt-4">
+                        Don't have an account? 
+                        <a href="/register" class="text-primary hover:text-green-400 font-medium">Create one now</a>
+                    </p>
+                </div>
+
+                <!-- Features List -->
+                <div class="mt-16 grid grid-cols-1 md:grid-cols-2 gap-4 text-left max-w-2xl mx-auto">
+                    <div class="flex items-start space-x-3">
+                        <span class="text-primary text-2xl">✓</span>
+                        <div>
+                            <h4 class="text-white font-medium">AI-Powered Answers</h4>
+                            <p class="text-sm text-gray-500">Get accurate answers using advanced AI</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <span class="text-primary text-2xl">✓</span>
+                        <div>
+                            <h4 class="text-white font-medium">Source Citations</h4>
+                            <p class="text-sm text-gray-500">See exact pages and documents referenced</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <span class="text-primary text-2xl">✓</span>
+                        <div>
+                            <h4 class="text-white font-medium">Confidence Scores</h4>
+                            <p class="text-sm text-gray-500">Know how reliable each answer is</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <span class="text-primary text-2xl">✓</span>
+                        <div>
+                            <h4 class="text-white font-medium">Edit & Review</h4>
+                            <p class="text-sm text-gray-500">Mark correct answers and edit as needed</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center mt-16 text-gray-600 text-sm">
+                <p>© 2026 MediQuery AI HealthApp. Powered by AI for better healthcare insights.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

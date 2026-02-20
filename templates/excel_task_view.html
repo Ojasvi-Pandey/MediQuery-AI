@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}{{ task.task_name if task else 'Task' }} - HealthApp{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">{{ task.task_name if task else 'Excel Task Results' }}</h1>
+        <div class="flex items-center gap-4 text-sm text-gray-400">
+            <span>📊 {{ answers|length }} questions processed</span>
+            {% if task %}
+            <span>•</span>
+            <span>{{ task.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if answers %}
+        <div class="space-y-4">
+            {% for answer in answers %}
+            <div class="bg-dark-light rounded-xl p-6 border border-dark-lighter hover:border-primary transition">
+                <!-- Question -->
+                <div class="mb-4">
+                    <span class="inline-block px-2 py-1 bg-primary text-white text-xs font-semibold rounded mb-2">Q{{ loop.index }}</span>
+                    <h3 class="text-lg font-semibold text-white">{{ answer.question }}</h3>
+                </div>
+
+                <!-- Answer -->
+                <div class="bg-dark rounded-lg p-4 mb-4 border border-dark-lighter">
+                    <p class="text-gray-100 leading-relaxed" id="answer-text-{{ answer.answer_id }}">{{ answer.answer }}</p>
+                </div>
+
+                <!-- Metadata -->
+                {% if answer.confidence is not none and answer.confidence > 0 %}
+                <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <span class="px-3 py-1 rounded-full text-sm font-medium
+                                     {% if answer.confidence > 70 %}bg-green-600{% elif answer.confidence > 40 %}bg-yellow-600{% else %}bg-red-600{% endif %} text-white">
+                            {{ answer.confidence }}% confidence
+                        </span>
+                        
+                        {% if answer.source_doc_names %}
+                        <span class="px-3 py-1 bg-blue-600 bg-opacity-20 text-blue-400 rounded-full text-sm">
+                            📄 {{ answer.source_doc_names }}
+                        </span>
+                        {% endif %}
+                        
+                        {% if answer.source_pages %}
+                        <span class="px-3 py-1 bg-secondary bg-opacity-20 text-secondary rounded-full text-sm">
+                            Pages: {{ answer.source_pages }}
+                        </span>
+                        {% endif %}
+
+                        {% if answer.is_correct %}
+                        <span class="px-3 py-1 bg-green-600 bg-opacity-20 text-green-400 rounded-full text-sm">
+                            ✓ Marked Correct
+                        </span>
+                        {% endif %}
+
+                        {% if answer.is_edited %}
+                        <span class="px-3 py-1 bg-yellow-600 bg-opacity-20 text-yellow-400 rounded-full text-sm">
+                            ✏️ Edited
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Feedback Buttons - Show only if NOT marked correct AND NOT edited -->
+                {% if not answer.is_correct and not answer.is_edited %}
+                <div class="flex gap-2">
+                    <button onclick="markCorrect('{{ answer.answer_id }}')" 
+                            class="text-sm px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                        ✓ Mark Correct
+                    </button>
+                    <button onclick="editAnswer('{{ answer.answer_id }}')" 
+                            class="text-sm px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition">
+                        ✏️ Edit Answer
+                    </button>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="mt-8 text-center">
+            <a href="{{ url_for('excel_qa') }}" 
+               class="inline-block bg-primary hover:bg-green-600 text-white font-semibold py-3 px-8 rounded-xl transition">
+                Process Another Excel File
+            </a>
+        </div>
+    {% else %}
+        <div class="text-center py-16 bg-dark-light rounded-xl border border-dark-lighter">
+            <div class="text-6xl mb-4">📊</div>
+            <h3 class="text-xl font-semibold text-white mb-2">No results yet</h3>
+            <p class="text-gray-400">This task hasn't been processed</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+async function markCorrect(answerId) {
+    if (!confirm('Mark this answer as correct?')) return;
+    
+    try {
+        const response = await fetch(`/task/answer/${answerId}/feedback`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ is_correct: true })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showNotification('Answer marked as correct!', 'success');
+            location.reload();
+        } else {
+            showNotification('Failed to save feedback', 'error');
+        }
+    } catch (error) {
+        console.error('Feedback error:', error);
+        showNotification('Failed to save feedback', 'error');
+    }
+}
+
+async function editAnswer(answerId) {
+    const answerEl = document.getElementById('answer-text-' + answerId);
+    const currentAnswer = answerEl.textContent.trim();
+    
+    const newAnswer = prompt('Edit the answer:', currentAnswer);
+    
+    if (!newAnswer || newAnswer === currentAnswer) return;
+    
+    try {
+        const response = await fetch(`/task/answer/${answerId}/feedback`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                is_correct: false,
+                edited_answer: newAnswer 
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            answerEl.textContent = newAnswer;
+            showNotification('Answer updated successfully!', 'success');
+            location.reload();
+        } else {
+            showNotification('Failed to update answer', 'error');
+        }
+    } catch (error) {
+        console.error('Edit error:', error);
+        showNotification('Failed to update answer', 'error');
+    }
+}
+
+function showNotification(message, type) {
+    const color = type === 'success' ? 'bg-green-600' : 'bg-red-600';
+    const div = document.createElement('div');
+    div.className = `fixed top-20 right-4 ${color} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+    div.textContent = message;
+    document.body.appendChild(div);
+    
+    setTimeout(() => {
+        div.style.opacity = '0';
+        div.style.transition = 'opacity 0.5s';
+        setTimeout(() => div.remove(), 500);
+    }, 3000);
+}
+</script>
+{% endblock %}

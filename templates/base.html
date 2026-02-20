@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MediQuery AI{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#10b981',
+                        secondary: '#3b82f6',
+                        dark: {
+                          DEFAULT: '#0f172a',
+                          light: '#1e293b',
+                          lighter: '#334155'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-in { animation: slideIn 0.3s ease-out; }
+    </style>
+</head>
+<body class="bg-dark text-gray-100">
+    {% if current_user.is_authenticated %}
+    <!-- Navigation -->
+    <nav class="bg-dark-light border-b border-dark-lighter sticky top-0 z-50 backdrop-blur-sm bg-opacity-90">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <a href="{{ url_for('dashboard') }}" class="flex items-center">
+                        <span class="text-2xl mr-2">🏥</span>
+                        <span class="text-xl font-bold text-primary">MediQuery AI</span>
+                    </a>
+                    <div class="hidden md:block ml-10">
+                        <div class="flex items-baseline space-x-4">
+                            <a href="{{ url_for('dashboard') }}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-dark-lighter transition">Dashboard</a>
+                            <a href="{{ url_for('chat_list') }}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-dark-lighter transition">Chats</a>
+                            <a href="{{ url_for('excel_qa') }}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-dark-lighter transition">Excel Q&A</a>
+                            <a href="{{ url_for('history') }}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-dark-lighter transition">History</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-400">{{ current_user.username }}</span>
+                    <a href="{{ url_for('logout') }}" class="px-4 py-2 rounded-md text-sm font-medium bg-red-600 hover:bg-red-700 transition">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <!-- Flash Messages -->
+    <div class="fixed top-20 right-4 z-50 space-y-2" id="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="animate-slide-in max-w-sm px-4 py-3 rounded-lg shadow-lg {% if category == 'success' %}bg-green-600{% elif category == 'danger' %}bg-red-600{% elif category == 'warning' %}bg-yellow-600{% else %}bg-blue-600{% endif %} text-white">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="min-h-screen">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Auto-dismiss flash messages
+        setTimeout(() => {
+            const flashContainer = document.getElementById('flash-container');
+            if (flashContainer) {
+                flashContainer.style.opacity = '0';
+                flashContainer.style.transition = 'opacity 0.5s';
+                setTimeout(() => flashContainer.remove(), 500);
+            }
+        }, 5000);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
